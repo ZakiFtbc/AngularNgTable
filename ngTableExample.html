@@ -1,0 +1,86 @@
+<html>
+
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
+    <script src="https://unpkg.com/angular@1.5.5/angular.js"></script>
+    <script src="https://unpkg.com/ng-table@3.0.1/bundles/ng-table.min.js"></script>
+
+    <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" ; href="https://unpkg.com/ng-table@3.0.1/bundles/ng-table.min.css">
+
+    <script>
+        var app = angular.module('ngTableTest', ['ngTable']);
+
+        app.controller("mainController", function($scope, NgTableParams, mainControllerService) {
+            console.debug('mainController.init');
+
+            $scope.tableParams = new NgTableParams({
+                page: 1, // show first page
+                count: 10 // count per page
+            }, {
+                total: 0, // length of data
+                getData: function(params) {
+                    var sortNameValue = "";
+                    for (var keyName in params.sorting()) {
+                        sortNameValue = keyName;
+                        sortNameValue = sortNameValue + "_" + params.sorting()[keyName];
+                    }
+                    return mainControllerService.getData(params.page(), params.count(), sortNameValue).then(function(data) {
+                        console.debug("data received length=" + data.data.RestResponse.result.length);
+                        params.total(data.data.RestResponse.result.length); // set total for recalc pagination
+                        return data.data.RestResponse.result;
+                    });
+                }
+            });
+
+            console.log('mainController.end');
+        });
+
+        app.service("mainControllerService", function($http) {
+            console.debug('mainControllerService.init');
+
+            var service = {
+                cachedData: [],
+                getData: function(page, count, sorting) {
+                    console.debug("fetching page=" + page + ", count=" + count + ", sorting=" + JSON.stringify(sorting));
+                    var params = {
+                        Page: page,
+                        RecsPerPage: count,
+                        SortBy: sorting
+                    };
+                    var config = {
+                        params: params
+                    }
+                    var promise = $http.get("http://services.groupkt.com/country/get/all", config)
+                        .success(function(response) {
+                            console.debug('downloaded ' + response.RestResponse.result.length + ' records');
+                            angular.copy(response.RestResponse.result, service.cachedData);
+                        });
+                    return promise.then(function(result) {
+                        return result;
+                    });
+                }
+            }
+
+            return service;
+        });
+    </script>
+</head>
+
+<body>
+    <div ng-app="ngTableTest" ng-controller="mainController">
+        <div loading-container="tableParams.settings().$loading">
+            <table ng-table="tableParams" class="table table-condensed table-bordered table-striped" showFilter="false">
+                <tbody>
+                    <tr ng-repeat="x in $data">
+                        <td data-title="'Name'" sortable="'name'">{{ x.name }}</td>
+                        <td data-title="'Alpha2 Code'" sortable="'alpha2_code'">{{ x.alpha2_code }}</td>
+                        <td data-title="'Alpha3 Code'" sortable="'alpha3_code'">{{ x.alpha3_code }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>
